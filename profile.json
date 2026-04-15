@@ -1,9 +1,9 @@
 {
     "data": {
-        "displayName": "TW3 DAO",
-        "githubName": "tw3-dao",
-        "evmAddress": "0x0000000000000000000000000000000000000000",
-        "signedAt": 0
+        "displayName": "ChrisHashing",
+        "githubName": "ChrisHashing",
+        "evmAddress": "0x38164e560fd22bb8cd3cd23361779a6202771a8e",
+        "signedAt": 1776274619
     },
-    "signature": "0x00"
+    "signature": "0x1048104706e94fd4698cc87620b5e2084c34ad9bdd7cf59c78a4a595b48976f54def9d90802e3b13dbb29064afd128243030b71b14d94e9f75eff028feab889f1b"
 }
