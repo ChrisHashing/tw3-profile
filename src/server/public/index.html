@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TW3 Profile — Sign</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0a0a0f;
+      color: #e0e0e8;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .card {
+      background: #14141f;
+      border: 1px solid #2a2a3a;
+      border-radius: 16px;
+      padding: 2.5rem;
+      width: 100%;
+      max-width: 480px;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .subtitle {
+      color: #888;
+      font-size: 0.875rem;
+      margin-bottom: 2rem;
+    }
+
+    /* Wallet list */
+    #wallet-section { margin-bottom: 1.5rem; }
+
+    .wallet-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .wallet-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: #1c1c2e;
+      border: 1px solid #2a2a3a;
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      color: #e0e0e8;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+
+    .wallet-btn:hover { border-color: #6c5ce7; }
+    .wallet-btn img { width: 28px; height: 28px; border-radius: 6px; }
+
+    .connected-addr {
+      display: inline-block;
+      background: #1c1c2e;
+      border: 1px solid #3a3a4a;
+      border-radius: 8px;
+      padding: 0.5rem 0.75rem;
+      font-family: monospace;
+      font-size: 0.85rem;
+      color: #a29bfe;
+      margin-bottom: 1.5rem;
+      word-break: break-all;
+    }
+
+    /* Form fields */
+    label {
+      display: block;
+      font-size: 0.8rem;
+      color: #888;
+      margin-bottom: 0.25rem;
+      margin-top: 1rem;
+    }
+
+    label:first-of-type { margin-top: 0; }
+
+    input {
+      width: 100%;
+      background: #1c1c2e;
+      border: 1px solid #2a2a3a;
+      border-radius: 8px;
+      padding: 0.6rem 0.75rem;
+      color: #e0e0e8;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    input:focus { border-color: #6c5ce7; }
+    input:read-only { opacity: 0.6; cursor: not-allowed; }
+
+    /* Buttons */
+    .btn {
+      width: 100%;
+      padding: 0.75rem;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      margin-top: 1.5rem;
+    }
+
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary { background: #6c5ce7; color: #fff; }
+    .btn-primary:hover:not(:disabled) { opacity: 0.85; }
+
+    /* Preview */
+    .preview-box {
+      background: #0a0a0f;
+      border: 1px solid #2a2a3a;
+      border-radius: 8px;
+      padding: 0.75rem;
+      font-family: monospace;
+      font-size: 0.8rem;
+      color: #aaa;
+      white-space: pre-wrap;
+      word-break: break-all;
+      margin-top: 1rem;
+    }
+
+    .status {
+      text-align: center;
+      margin-top: 1rem;
+      font-size: 0.9rem;
+    }
+
+    .status.ok { color: #00b894; }
+    .status.err { color: #e17055; }
+
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <h1>TW3 Profile</h1>
+  <p class="subtitle">Connect your wallet, review your profile, and sign.</p>
+
+  <!-- Step 1: Wallet selection -->
+  <div id="wallet-section">
+    <div class="wallet-list" id="wallet-list">
+      <p style="color:#666; font-size:0.85rem;">Detecting wallets…</p>
+    </div>
+  </div>
+
+  <!-- Step 2: Profile form + signing (hidden until connected) -->
+  <div id="form-section" class="hidden">
+    <p class="connected-addr" id="connected-addr"></p>
+
+    <label for="f-display">Display Name</label>
+    <input id="f-display" type="text" placeholder="Your display name" />
+
+    <label for="f-github">GitHub Username</label>
+    <input id="f-github" type="text" placeholder="your-github-name" />
+
+    <label for="f-address">EVM Address</label>
+    <input id="f-address" type="text" readonly />
+
+    <label for="f-signedat">Signed At</label>
+    <input id="f-signedat" type="text" readonly />
+
+    <div class="preview-box hidden" id="preview"></div>
+
+    <button class="btn btn-primary" id="btn-sign" disabled>Review &amp; Sign</button>
+    <div class="status hidden" id="status"></div>
+  </div>
+</div>
+
+<script type="module">
+  let connectedProvider = null;
+  let connectedAddress = null;
+  let phase = "review"; // "review" | "sign"
+
+  // ── Canonical message (must match server-side — alphabetical keys) ──
+  function canonicalMessage(data) {
+    return JSON.stringify({
+      displayName: data.displayName,
+      evmAddress: data.evmAddress,
+      githubName: data.githubName,
+      signedAt: data.signedAt,
+    });
+  }
+
+  function nowEpoch() {
+    return Math.floor(Date.now() / 1000);
+  }
+
+  // ── EIP-6963 wallet discovery ──────────────────────────────────────
+  const discoveredWallets = [];
+
+  window.addEventListener("eip6963:announceProvider", (e) => {
+    discoveredWallets.push(e.detail);
+    renderWallets();
+  });
+
+  window.dispatchEvent(new Event("eip6963:requestProvider"));
+
+  // Fallback: if no EIP-6963 wallets after 600ms, try window.ethereum
+  setTimeout(() => {
+    if (discoveredWallets.length === 0 && window.ethereum) {
+      discoveredWallets.push({
+        info: { name: "Browser Wallet", icon: "" },
+        provider: window.ethereum,
+      });
+      renderWallets();
+    }
+    if (discoveredWallets.length === 0) {
+      document.getElementById("wallet-list").innerHTML =
+        '<p style="color:#e17055;font-size:0.85rem;">No wallet detected. Please install MetaMask or another EVM wallet.</p>';
+    }
+  }, 600);
+
+  function renderWallets() {
+    const list = document.getElementById("wallet-list");
+    list.innerHTML = "";
+    for (const w of discoveredWallets) {
+      const btn = document.createElement("button");
+      btn.className = "wallet-btn";
+      const icon = w.info.icon
+        ? `<img src="${w.info.icon}" alt="" />`
+        : "";
+      btn.innerHTML = `${icon}<span>${w.info.name || "Wallet"}</span>`;
+      btn.addEventListener("click", () => connect(w.provider));
+      list.appendChild(btn);
+    }
+  }
+
+  // ── Connect ────────────────────────────────────────────────────────
+  async function connect(provider) {
+    try {
+      const accounts = await provider.request({ method: "eth_requestAccounts" });
+      if (!accounts || accounts.length === 0) return;
+      connectedProvider = provider;
+      connectedAddress = accounts[0];
+      onConnected();
+    } catch (err) {
+      showStatus("Connection rejected: " + err.message, true);
+    }
+  }
+
+  async function onConnected() {
+    document.getElementById("wallet-section").classList.add("hidden");
+    document.getElementById("form-section").classList.remove("hidden");
+    document.getElementById("connected-addr").textContent = connectedAddress;
+    document.getElementById("f-address").value = connectedAddress;
+    document.getElementById("btn-sign").disabled = false;
+
+    const ts = nowEpoch();
+    document.getElementById("f-signedat").value = new Date(ts * 1000).toISOString();
+    document.getElementById("f-signedat").dataset.epoch = ts;
+
+    // Pre-fill from server data
+    try {
+      const res = await fetch("/api/profile-data");
+      const data = await res.json();
+      if (data.displayName) document.getElementById("f-display").value = data.displayName;
+      if (data.githubName) document.getElementById("f-github").value = data.githubName;
+    } catch { /* ignore */ }
+  }
+
+  // ── Sign flow ──────────────────────────────────────────────────────
+  document.getElementById("btn-sign").addEventListener("click", async () => {
+    const btn = document.getElementById("btn-sign");
+    const displayName = document.getElementById("f-display").value.trim();
+    const githubName = document.getElementById("f-github").value.trim();
+    const signedAt = nowEpoch();
+
+    // Update the displayed timestamp to the moment of signing
+    document.getElementById("f-signedat").value = new Date(signedAt * 1000).toISOString();
+    document.getElementById("f-signedat").dataset.epoch = signedAt;
+
+    if (!displayName || !githubName) {
+      showStatus("Display Name and GitHub Username are required.", true);
+      return;
+    }
+
+    const profileData = {
+      displayName,
+      githubName,
+      evmAddress: connectedAddress,
+      signedAt,
+    };
+
+    if (phase === "review") {
+      const msg = canonicalMessage(profileData);
+      document.getElementById("preview").classList.remove("hidden");
+      document.getElementById("preview").textContent = "Message to sign:\n" + msg;
+      btn.textContent = "Confirm & Sign";
+      phase = "sign";
+      return;
+    }
+
+    // Phase: sign
+    btn.disabled = true;
+    btn.textContent = "Signing…";
+    hideStatus();
+
+    try {
+      const msg = canonicalMessage(profileData);
+      const signature = await connectedProvider.request({
+        method: "personal_sign",
+        params: [toHex(msg), connectedAddress],
+      });
+
+      const res = await fetch("/api/sign-result", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          data: profileData,
+          signature,
+          address: connectedAddress,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Server rejected result");
+
+      showStatus("Signed successfully! You can close this tab.", false);
+      btn.textContent = "Done";
+    } catch (err) {
+      showStatus("Signing failed: " + err.message, true);
+      btn.disabled = false;
+      btn.textContent = "Retry Sign";
+      phase = "sign";
+    }
+  });
+
+  // Reset preview when fields change
+  for (const id of ["f-display", "f-github"]) {
+    document.getElementById(id).addEventListener("input", () => {
+      if (phase === "sign") {
+        phase = "review";
+        document.getElementById("btn-sign").textContent = "Review & Sign";
+        document.getElementById("preview").classList.add("hidden");
+      }
+    });
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────
+  function toHex(str) {
+    return (
+      "0x" +
+      Array.from(new TextEncoder().encode(str))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("")
+    );
+  }
+
+  function showStatus(msg, isError) {
+    const el = document.getElementById("status");
+    el.textContent = msg;
+    el.className = "status " + (isError ? "err" : "ok");
+    el.classList.remove("hidden");
+  }
+
+  function hideStatus() {
+    document.getElementById("status").classList.add("hidden");
+  }
+</script>
+
+</body>
+</html>

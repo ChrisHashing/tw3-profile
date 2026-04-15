@@ -1,0 +1,25 @@
+name: Validate Profile
+
+on:
+  push:
+    paths: ["profile.json"]
+  pull_request:
+    paths: ["profile.json"]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate signature and schema
+        run: npm run validate
+        env:
+          EXPECTED_OWNER: ${{ github.repository_owner }}
