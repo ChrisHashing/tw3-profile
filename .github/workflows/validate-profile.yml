@@ -2,13 +2,17 @@ name: Validate Profile
 
 on:
   push:
+    branches: ["main"]
     paths: ["profile.json"]
   pull_request:
+    branches: ["main"]
     paths: ["profile.json"]
 
 jobs:
   validate:
+    if: github.repository_owner != 'tw3-dao'
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
