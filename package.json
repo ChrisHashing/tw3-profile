@@ -1,0 +1,29 @@
+{
+  "name": "tw3-profile",
+  "version": "1.0.0",
+  "description": "TW3 DAO profile identity tooling — create, sign, and validate your on-chain identity",
+  "license": "AGPL-3.0",
+  "type": "module",
+  "scripts": {
+    "sign-data": "tsx src/cli/sign-data.ts",
+    "sign-data:ethers": "tsx src/cli/sign-data.ts --ethers",
+    "create-profile": "tsx src/cli/create-profile.ts",
+    "create-profile:ethers": "tsx src/cli/create-profile.ts --ethers",
+    "validate": "tsx src/cli/validate.ts"
+  },
+  "dependencies": {
+    "commander": "^13.1.0",
+    "dotenv": "^16.5.0",
+    "ethers": "^6.13.0",
+    "express": "^5.1.0",
+    "inquirer": "^12.6.0",
+    "open": "^10.1.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.15.0",
+    "ts-node": "^10.9.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.8.0"
+  }
+}
